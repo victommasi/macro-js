@@ -1,0 +1,25 @@
+{
+  "name": "macrojs",
+  "version": "1.0.0",
+  "description": "MacroJS is a CLI macro recorder/player that is capable of analyzing and adapting to the content on the screen. It's written in NodeJS and is cross-platform. At this point it's almost ready to be called version 1, it just needs an easier install process, and the editor needs a real frontend.",
+  "main": "playback.js",
+  "dependencies": {
+    "iohook": "^0.6.6",
+    "readline-sync": "^1.4.10",
+    "robotjs": "^0.6.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FrankSalmick/MacroJS.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/FrankSalmick/MacroJS/issues"
+  },
+  "homepage": "https://github.com/FrankSalmick/MacroJS#readme"
+}

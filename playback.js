@@ -1,10 +1,15 @@
 const r = require('robotjs');
-const keycode = require('keycode')
 const fs = require('fs');
-const looksame = require('looks-same');
-const screenshot = require('screenshot-desktop');
-const sharp = require('sharp');
+
 const buttons = ["", "left", "right"];
+
+// TODO USER CONFIGURABLE 
+var maxPlayback = -1; // Loop quantity (-1 for infinite) 
+const oneMinute = 60 * 1000;
+const oneHour = 60 * oneMinute;
+
+// TIME LOOP CONFIGURATION
+var timeBetweenPlayback = 1 * oneHour;
 
 // globals
 var playbackCount = 1;
@@ -13,49 +18,13 @@ var macroName;
 var inputCommands = [];
 var flags = [];
 
-// todo user configurable 
-// -1 for infinite 
-var maxPlayback = -1;
-var timeBetweenPlayback = 200; //ms
-
 async function handleClick(command) {
-    var mousePos = r.getMousePos(); 
+    var mousePos = r.getMousePos();
     r.moveMouse(command['x'], command['y']);
     setTimeout(() => {
         r.mouseClick(buttons[command['button']]);
         // r.moveMouse(mousePos['x'], mousePos['y']);
     }, 40);
-}
-
-async function checkForScreenshot(command) {
-    return screenshot({format: 'png'}).then((img) => { 
-        var locationData = command.locations[0];
-        return sharp(img).extract({left: Number(locationData.x), top: Number(locationData.y), width: Number(locationData.width), height: Number(locationData.height)}).toBuffer().then(croppedImg => {
-            var storedImage = fs.readFileSync("playbackfiles/" + macroName + "/images/" + command.filename + "-" + locationData.x + "-" + locationData.y + "-" + locationData.width + "-" + locationData.height);
-            // debug:
-            // fs.writeFileSync("stored.png", storedImage);
-            // fs.writeFileSync("crop.png", croppedImg);
-            // looksame.createDiff({ reference: storedImage, current: croppedImg, diff: 'testout23.png'}, (error) => {if (error) console.log(error); })
-            // todo deal with minor differences between images (right now it's basically strict, except for exact color matching)
-            return new Promise(resolve => {
-                looksame(croppedImg, storedImage, { strict: false }, async function (error, { equal }) {
-                    resolve(equal == true);
-                })
-            });
-        });
-    }).catch(err => { console.log(err); return false; });
-}
-
-// not defined inline so a new version isn't made then called every iteration (which will probably eventually cause a stack overflow)
-// not sure if the JS optimizer is smart enough to make that not a problem but it's easier to just do it like this and know it will be fine.
-async function waitForRegionMatch(resolve, command) {
-    checkForScreenshot(command).then(result => {
-        if (result) {
-            resolve();
-        } else {
-            waitForRegionMatch(resolve, command);
-        }
-    })
 }
 
 var commands = {
@@ -73,35 +42,20 @@ var commands = {
             runCommands(markings[command.jumpName.toLowerCase()]);
         }
     },
-    "conditionalJump": async (command) => {
-        checkForScreenshot(command).then(matched => {
-            if (matched.toString() == command.jumpOnMatch) {
-                console.log("Jumping to " + command.jumpName);
-                runCommands(markings[command.jumpName]);
-            } else {
-                console.log("Continuing to next item.");
-                runCommands(command.index + 1);
-            }
-        });
-    },
-    "wait": async (command) => { 
+    "wait": async (command) => {
         // todo breaks if for less than mid double digits ms
         process.stdout.write("|");
         for (var i = 0; i < 50; i++) {
             setTimeout(() => process.stdout.write("-"), command.ms / 50 * i);
         }
         setTimeout(() => { console.log("|"); }, command.ms);
-        return new Promise(resolve => setTimeout(resolve, command.ms)); 
+        return new Promise(resolve => setTimeout(resolve, command.ms));
     },
     "mouseclick": handleClick,
     "mouseup": handleClick,
-    "regionmatch": async (command) => {
-        console.log("|------------     Matching  region     ------------|");
-        return new Promise(resolve => waitForRegionMatch(resolve, command));
-    },
     "movemouse": async (command) => { r.moveMouse(command['x'], command['y']); },
-    "keydown": async (command) => { r.keyToggle(keycode(command.rawcode), "down"); },
-    "keyup": async (command) => { r.keyToggle(keycode(command.rawcode), "up"); }
+    // "keydown": async (command) => { r.keyToggle(keycode(command.rawcode), "down"); },
+    // "keyup": async (command) => { r.keyToggle(keycode(command.rawcode), "up"); }
 };
 
 
@@ -132,10 +86,10 @@ function runCommands(index) {
         playbackCount++;
         if (maxPlayback == -1 || playbackCount <= maxPlayback) {
             console.log("Waiting " + timeBetweenPlayback + "ms (will be iteration " + playbackCount + "/" + maxPlayback + ").");
-            commands["wait"]({"ms": timeBetweenPlayback}).then(() => runCommands(0));
+            commands["wait"]({ "ms": timeBetweenPlayback }).then(() => runCommands(0));
         }
     }
-} 
+}
 
 
 (() => {
@@ -163,7 +117,7 @@ function runCommands(index) {
             if (parsedInput.type == "mark") {
                 // assumption: all marks are succeeded by a command
                 // because length = the index of the last item + 1, we don't have to add 1.
-                markings[parsedInput.name] = inputCommands.length;   
+                markings[parsedInput.name] = inputCommands.length;
             }
             else {
                 parsedInput["index"] = inputCommands.length;
